@@ -1,3 +1,7 @@
+wheel
 flask
-pymongo
 python-dotenv
+mongoengine
+mongomock
+PyJWT
+flask_limiter

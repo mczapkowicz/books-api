@@ -1,21 +1,24 @@
 from flask import Blueprint, jsonify, request
 from bson.objectid import ObjectId
-from MongoManager import MongoManager
-from utils.replace_id import replace_id
+from core.rate_limiter import limiter
+from models.books import Books
+from decorators.token_required import token_required
 
 books_blueprint = Blueprint('books_blueprint', __name__)
+
+limiter.limit('10/minute')(books_blueprint)
 
 
 @books_blueprint.route('/books', methods=['GET'])
 def get_books():
-    _items = MongoManager.getInstance().books.books.find()
-    items = []
-    for document in _items:
-        items.append(replace_id(document))
-    return jsonify(items)
+    books = []
+    for book in Books.objects():
+        books.append(book.to_json())
+    return jsonify(books)
 
 
 @books_blueprint.route('/books', methods=['POST'])
+@token_required
 def add_book():
     name = request.form.get('name', None)
     author = request.form.get('author', None)
@@ -28,34 +31,30 @@ def add_book():
     if category is None:
         return jsonify({"message": "Category field is missing"}), 400
 
-    MongoManager.getInstance().books.books.insert_one({
-        'name': name,
-        'author': author,
-        'category': category
-    })
+    book = Books(name=name, author=author)
+    book.save()
     return jsonify({"message": 'Book added'})
 
 
 @books_blueprint.route('/books/<book_id>', methods=['PUT'])
+@token_required
 def update_book(book_id):
-    collection = MongoManager.getInstance().books.books
-    result = collection.update_one({"_id": ObjectId(book_id)},
-                                   {"$set": {
-                                       'name': request.form['name'],
-                                       'author': request.form['author'],
-                                       'category': request.form['category']
-                                   }})
-
-    if result.matched_count == 1:
-        return jsonify({"message": result.matched_count})
+    print(book_id)
+    book = Books.objects(_id=ObjectId(book_id))
+    print(book)
+    updated_items = book.update(name=request.form['name'], author=request.form['author'])
+    if updated_items == 1:
+        return jsonify({"message": "Book updated"})
     else:
         return jsonify({"message": "Book not exist"}), 404
 
 
 @books_blueprint.route('/books/<book_id>', methods=['DELETE'])
+@token_required
 def delete_book(book_id):
-    result = MongoManager.getInstance().books.books.delete_one({"_id": ObjectId(book_id)})
-    if result.deleted_count > 0:
+    book = Books.objects(_id=ObjectId(book_id))
+    deleted_number = book.delete()
+    if deleted_number > 0:
         return jsonify({"message": "Book deleted"})
     else:
         return jsonify({"message": "Book not exist"}), 404
