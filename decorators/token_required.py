@@ -11,11 +11,9 @@ def token_required(f):
         token = request.headers.get("authorization")
         try:
             data = jwt.decode(token, salt, algorithms="HS256")
-            print(data)
         except jwt.ExpiredSignatureError:
             return jsonify({"message": "token expired"}), 401
         except (jwt.InvalidTokenError, Exception) as e:
-            print(e)
             return jsonify({"message": "token not valid"}), 401
         return f(*args, **kwargs)
     return decorated

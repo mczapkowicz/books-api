@@ -39,9 +39,7 @@ def add_book():
 @books_blueprint.route('/books/<book_id>', methods=['PUT'])
 @token_required
 def update_book(book_id):
-    print(book_id)
     book = Books.objects(_id=ObjectId(book_id))
-    print(book)
     updated_items = book.update(name=request.form['name'], author=request.form['author'])
     if updated_items == 1:
         return jsonify({"message": "Book updated"})
